@@ -1,0 +1,155 @@
+import streamlit as st
+import os
+import json
+
+def play_video(video_path, ad_start, ad_end):
+    st.video(video_path, start_time=ad_start, end_time=ad_end)
+    
+
+def display_metadata(video_path):
+    st.markdown("<div style='text-align: left;'><h1>Ad Tags and Metadata Viewer</h1></div>", unsafe_allow_html=True)
+    video_name = os.path.basename(video_path)
+    st.markdown(f"<div style='text-align: left;'><h3>{video_name}</h3></div>", unsafe_allow_html=True)
+
+    try:
+        with open('noche-de-bodas-json.json', 'r') as json_file:
+            data = json.load(json_file)
+    except FileNotFoundError:
+        st.error("Metadata file not found.")
+        return
+
+    if 'jsonindex' not in st.session_state:
+        st.session_state.jsonindex = 0
+
+    if st.session_state.jsonindex >= len(data):
+        st.success("No more ad breaks to display.")
+        if st.button("Reset"):
+            st.session_state.jsonindex = 0
+            st.experimental_rerun()
+        return
+
+    ad_break = data[st.session_state.jsonindex]
+    plot_point = ad_break.get("PlotPoint", "N/A")
+    mood = ad_break.get("Mood", [])
+    theme = ad_break.get("Theme", [])
+    tension_score = ad_break.get("TensionScore", "N/A")
+    start_time = ad_break.get("TimestampStart", 0)
+    end_time = ad_break.get("TimestampEnd", 0)
+    st.write(f"Playing video from {start_time} to {end_time}")
+    play_video(video_path, start_time, end_time)
+
+    with st.form(key='ad_form', border= False):
+        new_plot_point = display_plotpoint_slider(st.session_state.jsonindex, "PlotPoint", plot_point)
+        new_mood = display_mood_multiselect(st.session_state.jsonindex, "Mood", mood)
+        new_theme = display_theme_multiselect(st.session_state.jsonindex, "Theme", theme)
+        new_tension_score = display_tension_score_slider(st.session_state.jsonindex, "Tension Score", tension_score)
+        feedback = st.text_area("Feedback", key=f"feedback_{st.session_state.jsonindex}")
+        submit_button = st.form_submit_button(label='Submit')
+
+    if submit_button:
+        updated_ad_break = {
+            "AdBreakNumber": st.session_state.jsonindex + 1,  # incrementing by 1 to match user index starting at 1
+            "PlotPoint": new_plot_point,
+            "Mood": new_mood,
+            "Theme": new_theme,
+            "TensionScore": new_tension_score,
+            "TimestampStart": start_time,
+            "TimestampEnd": end_time,
+            "Feedback": feedback
+        }
+
+        try:
+            with open('updated_ad_breaks.json', 'r') as json_file:
+                existing_data = json.load(json_file)
+        except FileNotFoundError:
+            existing_data = []
+
+        existing_data.append(updated_ad_break)
+
+        with open('updated_ad_breaks.json', 'w') as json_file:
+            json.dump(existing_data, json_file, indent=4)
+
+        st.session_state.jsonindex += 1
+        st.success(f"Changes for Ad break #{st.session_state.jsonindex} recorded successfully!")
+        st.experimental_rerun()
+
+def display_plotpoint_slider(index, label, plot_point):
+    options = ["Exposition", "Rising Action", "Climax", "Resolution"]
+    if plot_point not in options:
+        plot_point = "Exposition"
+
+    return st.select_slider(
+            label,
+            options=options,
+            value=plot_point,
+            key=f"{label.lower()}_{index}"
+        )
+
+def display_mood_multiselect(index, label, mood):
+    options = [
+        "Affectionate", "Ambitious", "Beautiful", "Cerebral", "Charming", "Cheerful", "Chilling", "Compassionate",
+        "Compelling", "Cruel", "Cute", "Cynical", "Dangerous", "Dark", "Delightful", "Dreamy", "Electrifying", 
+        "Elegant", "Enigmatic", "Epic", "Exciting", "Explosive", "Extravagant", "Fantastical", "Fascinating", 
+        "Feel-good", "Funny", "Goofy", "Gritty", "Healthy", "Heartfelt", "Hilarious", "Humorous", "Hysterical", 
+        "Imaginative", "Unsettling", "Tender", "Tense", "Thrilling"
+    ]
+
+    return st.multiselect(
+            label,
+            options=options,
+            default=mood,
+            key=f"{label.lower()}_{index}"
+        )
+
+def display_theme_multiselect(index, label, theme):
+    options = [
+        "Absurdity","Acceptance", "Adversity", "Altruism", "Ambition", "Aspiration", "Betrayal", "Bravery", "Camaraderie", 
+        "Challenge", "Community", "Compassion", "Competition", "Consequences", "Corruption", "Courage", 
+        "Cruelty", "Desperation", "Destiny", "Determination", "Dignity", "Discipline", "Discovery", "Dishonesty", 
+        "Empowerment", "Equality", "Escapism", "Exploitation", "Faith", "Fame", "Family Bonds", "Fatherhood", "Fear",
+        "Fidelity", "Forgiveness", "Free Will", "Generosity", "Glamour", "Glory", "Gratitude", "Greed", "Heroism", 
+        "Honesty", "Honor", "Hope", "Idealism", "Inclusion", "Independence", "Individuality", "Infidelity", 
+        "Injustice", "Innocence", "Inspiration", "Intense","Intimacy", "Intimate", "Ironic", "Irreverent", "Jealousy", 
+        "Judgment", "Justice", "Leadership", "Legacy", "Loss", "Love", "Loyalty", "Lust", "Luxury", "Machismo", 
+        "Magic", "Materialism", "Melancholy", "Motherhood", "Murder", "Musicals", "Mysteries", "Mystical", 
+        "Narcissism", "Nature", "Nostalgia", "Obsession", "Oppression", "Optimism", "Passionate", "Patriotic", 
+        "Peace", "Perseverance", "Perverse", "Playful", "Popularity", "Positive", "Power", "Prejudice", "Pride", 
+        "Psychological", "Reconciliation", "Recovery", "Redemption", "Regret", "Reinvention", "Respect", 
+        "Responsibility", "Revenge", "Romance","Romantic", "Sacrifice", "Sad", "Sarcastic", "Scary", "Science", 
+        "Self-Acceptance", "Sensational", "Sensual", "Sentimental", "Separation", "Serious", "Shocking", 
+        "Showbiz", "Sincere", "Solidarity", "Sophisticated", "Spy", "Stylish", "Suspenseful", "Suspicion", 
+        "Temptation", "Tolerance", "Touching", "Tradition", "Tragic", "Travel", "Truth", "Unpredictable", 
+        "Vengeance", "Violent", "Virtue"
+    ]
+
+    return st.multiselect(
+            label,
+            options=options,
+            default=theme,
+            key=f"{label.lower()}_{index}"
+        )
+
+def display_tension_score_slider(index, label, tension_score):
+    try:
+        tension_score = float(tension_score)
+    except ValueError:
+        tension_score = 0  # default value if the tension score is not a valid number
+
+    return st.slider(label, min_value=0, max_value=10, value=int(tension_score), key=f"{label.lower()}_{index}")
+
+if __name__ == '__main__':
+    st.markdown(
+        """
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+        html, body, [class*="css"]  {
+            font-family: 'Roboto', sans-serif;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    video_path = os.path.join("C:", os.sep, "Users", "romendoza", "OneDrive - Univision Communications", "Documents", "Test4", "noche-de-bodas.mp4")
+
+    display_metadata(video_path)
