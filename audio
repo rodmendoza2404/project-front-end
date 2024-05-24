@@ -1,0 +1,65 @@
+import base64
+import time
+import os
+import vertexai
+from vertexai.generative_models import GenerativeModel, Part
+import vertexai.preview.generative_models as generative_models
+
+
+def generate(audio1, text1, generation_config, safety_settings, location):
+  vertexai.init(project="st-vix-ott-dev", location=location)
+  model = GenerativeModel("gemini-1.5-pro-preview-0409")
+  responses = model.generate_content(
+      ["you are a helpful assistant to extract metadata from audio files.", audio1, text1],
+      generation_config=generation_config,
+      safety_settings=safety_settings,
+      #stream=True,
+  )
+  return responses
+if __name__ == "__main__":
+    counter_quota = 0
+    results=[]
+    regions = [
+    "europe-west1",
+    "asia-northeast3",
+    "us-central1"
+    ]
+    #path where the audio files are stored
+    base_path = os.path.join("C:",os.sep,"Users","romendoza", "OneDrive - Univision Communications", "Documents", "Test", "Audios")
+   # for file in os.listdir(base_path):
+    for i, file in enumerate(os.listdir(base_path)):
+        print(i)
+        location = regions[i%len(regions)]
+        print(file)
+        full_file_path = os.path.join(base_path, file)
+        with open(full_file_path, 'rb') as f:
+            audio_data = f.read()
+        # Get the base64 encoding of the audio data
+        audio_b64 = base64.b64encode(audio_data)
+        audio1 = Part.from_data(
+            #mime_type="audio/x-wav", #have to change here
+            mime_type="audio/mpeg",
+            data=base64.b64decode(audio_b64))
+        #modifiy the text to fit the task, this is just an example. Adding a taxonomy will help.
+        text1 = """The given audio file is the audio of a title that we want to extract metadata from it.
+        Please identify the 3 most relevant emotions present in the audio file.
+        Avoid including explanations.
+        Give your answer in a json format with the following structure:
+        emotions: list of emotions identifyed.
+        moods: list of moods identifyed.
+        genres: list of genres identifyed.
+        """
+        generation_config = {
+            "max_output_tokens": 8192,
+            "temperature": 0.1,
+            "top_p": 0.95,
+        }
+        safety_settings = {
+            generative_models.HarmCategory.HARM_CATEGORY_HATE_SPEECH: generative_models.HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            generative_models.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: generative_models.HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            generative_models.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: generative_models.HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        }
+        print("Calling Gemini")
+        gemini_result = generate(audio1, text1, generation_config, safety_settings,location)
+        print(gemini_result.text)
